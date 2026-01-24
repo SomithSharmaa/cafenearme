@@ -1,4 +1,8 @@
-# React + Vite
+# Cafe Finder
+
+This project is a Cafe Finder application built with React, Vite, and Google Maps API.
+
+## React + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
