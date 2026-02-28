@@ -4,9 +4,6 @@ import { Star, Heart, User, MapPin } from 'lucide-react';
 const CafeDetails = ({ cafe }) => {
     if (!cafe) return <div className="bg-white rounded-3xl p-6 shadow-xl w-full h-full flex items-center justify-center text-gray-400">Select a cafe</div>;
 
-    const zomatoLink = cafe.website && cafe.website.includes('zomato.com') ? cafe.website : `https://www.zomato.com/city/restaurants?q=${encodeURIComponent(cafe.name + ' ' + cafe.city)}`;
-    const swiggyLink = cafe.website && cafe.website.includes('swiggy.com') ? cafe.website : `https://www.swiggy.com/search?q=${encodeURIComponent(cafe.name)}`;
-
     // Use the official Google Maps URL if available for "Reserve with Google" style behavior/access
     const googleMapsUrl = cafe.googleUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(cafe.name + ' ' + cafe.address)}`;
 
@@ -25,8 +22,11 @@ const CafeDetails = ({ cafe }) => {
                         <span className="text-xs text-gray-400 ml-1">({cafe.type})</span>
                     </div>
                 </div>
-                <button className="text-red-500 hover:scale-110 transition-transform">
-                    <Heart fill="currentColor" size={24} />
+                <button
+                    className={`transition-transform hover:scale-110 ${cafe.isFavorite ? 'text-red-500' : 'text-gray-300 hover:text-red-400'}`}
+                    onClick={() => cafe.onToggleFavorite && cafe.onToggleFavorite(cafe)}
+                >
+                    <Heart fill={cafe.isFavorite ? "currentColor" : "none"} size={24} />
                 </button>
             </div>
 
@@ -37,7 +37,7 @@ const CafeDetails = ({ cafe }) => {
 
             {/* Stats & Actions */}
             <div className="flex gap-4">
-                <StatBox label="Daily Visitors" value={cafe.visitors} />
+                <StatBox label="Daily Visitors" value={cafe.visitors || "100+"} />
 
                 {/* Reviews */}
                 <div className="relative group/reviews flex-1">
@@ -66,24 +66,53 @@ const CafeDetails = ({ cafe }) => {
                 </div>
 
                 {/* Book / Actions */}
-                <div className="bg-[#E0F5EE] rounded-2xl p-3 flex-1 flex flex-col items-center justify-center transition-colors group gap-2">
+                <div className="bg-[#E0F5EE] rounded-2xl p-2 flex-[2] flex flex-col justify-center transition-colors group gap-1.5">
 
-                    {/* Delivery Links */}
-                    <div className="flex gap-2">
-                        <a href={zomatoLink} target="_blank" rel="noopener noreferrer" className="w-6 h-6 bg-red-600 rounded flex items-center justify-center text-white font-bold text-[10px] shadow hover:scale-110 transition" title="Zomato">Z</a>
-                        <a href={swiggyLink} target="_blank" rel="noopener noreferrer" className="w-6 h-6 bg-orange-500 rounded flex items-center justify-center text-white font-bold text-[10px] shadow hover:scale-110 transition" title="Swiggy">S</a>
+                    {/* Delivery Links Row */}
+                    <div className="flex gap-1.5 w-full">
+                        {/* Zomato */}
+                        <a
+                            href={`https://www.zomato.com/search?q=${encodeURIComponent(cafe.name + (cafe.city && cafe.city !== 'Unknown' ? ' ' + cafe.city : ''))}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 bg-[#CB202D] text-white py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:shadow-md hover:scale-105 transition-all flex items-center justify-center gap-1"
+                        >
+                            <span className="font-serif italic text-sm leading-none">Z</span>
+                            Zomato
+                        </a>
+
+                        {/* Swiggy */}
+                        <a
+                            href={`https://www.swiggy.com/search?query=${encodeURIComponent(cafe.name + (cafe.city && cafe.city !== 'Unknown' ? ' ' + cafe.city : ''))}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 bg-[#FC8019] text-white py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:shadow-md hover:scale-105 transition-all flex items-center justify-center gap-1"
+                        >
+                            <span className="font-extrabold text-xs leading-none">S</span>
+                            Swiggy
+                        </a>
                     </div>
 
-                    {/* Google Book/View */}
-                    <a
-                        href={googleMapsUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="bg-white px-3 py-1 rounded-lg text-[10px] font-bold text-blue-600 shadow-sm hover:shadow-md flex items-center gap-1 w-full justify-center whitespace-nowrap"
-                    >
-                        <MapPin size={10} />
-                        Reserve / View
-                    </a>
+                    <div className="flex gap-1.5 w-full">
+                        {/* Dineout */}
+                        <a
+                            href={`https://www.swiggy.com/search?query=${encodeURIComponent(cafe.name + (cafe.city && cafe.city !== 'Unknown' ? ' ' + cafe.city : ''))}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 bg-gradient-to-r from-[#FF3269] to-[#FF7E5F] text-white py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:shadow-md hover:scale-105 transition-all flex items-center justify-center gap-1"
+                        >
+                            Dineout
+                        </a>
+
+                        {/* Reserve Table */}
+                        <button
+                            onClick={() => cafe.onReserve && cafe.onReserve()}
+                            className="flex-1 bg-black text-white py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:shadow-md hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-1"
+                        >
+                            <MapPin size={10} />
+                            Reserve
+                        </button>
+                    </div>
 
                 </div>
             </div>
