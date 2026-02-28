@@ -43,7 +43,7 @@ const MatchmakerModal = ({ isOpen, onClose, cafes, onMatchFound }) => {
         }
     };
 
-    const calculateMatch = (finalAnswers) => {
+    const calculateMatch = () => {
         setIsCalculating(true);
         // Simulate "AI" thinking
         setTimeout(() => {
@@ -52,10 +52,7 @@ const MatchmakerModal = ({ isOpen, onClose, cafes, onMatchFound }) => {
             // 2. Sort by Rating
             // 3. Pick top 1 (or random from top 3 to keep it fresh)
 
-            let filtered = cafes;
 
-            // This is extensive logic place holder, for now we map loosely or just pick a high rated one
-            // In a real app we'd map 'work' -> 'Wifi' keyword etc.
 
             // Mock logic: Sort by rating, get top 3
             const candidates = [...cafes].sort((a, b) => b.rating - a.rating).slice(0, 3);

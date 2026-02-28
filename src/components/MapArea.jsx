@@ -86,7 +86,7 @@ const ClusterMarker = ({ position, count, color, borderColor }) => {
     );
 };
 
-const LabelMarker = ({ position, name, rating, placement = 'top' }) => {
+const LabelMarker = ({ position, name, rating, placement = 'top', onClick }) => {
     const isTop = placement === 'top';
     const isBottom = placement === 'bottom';
 
@@ -102,7 +102,10 @@ const LabelMarker = ({ position, name, rating, placement = 'top' }) => {
 
     return (
         <OverlayView position={position} mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}>
-            <div className={`flex flex-col items-center ${transformClasses} cursor-pointer z-50 group`}>
+            <div
+                className={`flex flex-col items-center ${transformClasses} cursor-pointer z-50 group`}
+                onClick={onClick}
+            >
 
                 <div className={`flex flex-col items-center ${isBottom ? 'flex-col-reverse' : 'flex-col'} relative`}>
 
@@ -154,12 +157,7 @@ const MapArea = ({ cafes = [], selectedCafe, onCafeSelect, isHome }) => {
         const CLUSTER_RADIUS = 0.035; // ~3.5km - Large radius to group by 'Area' (e.g. Madhapur, Jubilee)
         const calculatedClusters = [];
         const processed = new Set();
-        const colors = [
-            { bg: 'from-blue-200 to-cyan-200', border: 'border-blue-400' },
-            { bg: 'from-purple-200 to-pink-200', border: 'border-purple-400' },
-            { bg: 'from-orange-200 to-yellow-200', border: 'border-orange-400' },
-            { bg: 'from-green-200 to-emerald-200', border: 'border-green-400' }
-        ];
+
 
         cafes.forEach((cafe, idx) => {
             if (processed.has(cafe.id)) return;
@@ -229,13 +227,13 @@ const MapArea = ({ cafes = [], selectedCafe, onCafeSelect, isHome }) => {
                 id: mvp.id,
                 name: mvp.name,
                 rating: mvp.rating,
-                pos: toLatLng(mvp.coordinates) // Real location
+                pos: toLatLng(mvp.coordinates), // Real location
+                original: mvp
             };
 
             // Calculate a safe label position: Shifted South-East from the CLUSTER center to avoid overlap
             // Distance check:
-            const latDiff = cluster.mvp.pos.lat - cluster.pos.lat;
-            const lngDiff = cluster.mvp.pos.lng - cluster.pos.lng;
+
 
             // If MVP is too close to cluster center (where the Badge is), assume overlap risk.
             // Badge is Top-Left. So South-East is the safest place.
@@ -317,6 +315,7 @@ const MapArea = ({ cafes = [], selectedCafe, onCafeSelect, isHome }) => {
                                         position={cluster.mvp.pos}
                                         name={cluster.mvp.name}
                                         rating={cluster.mvp.rating}
+                                        onClick={() => onCafeSelect(cluster.mvp.original)}
                                     />
                                 )}
                             </React.Fragment>

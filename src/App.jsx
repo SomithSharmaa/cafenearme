@@ -110,16 +110,11 @@ function App() {
 
   // Geolocation and Initial Setup
   useEffect(() => {
-    // Check if we have a deep link
-    const path = location.pathname;
-    if (path.startsWith('/cafe/')) {
-      const cafeId = path.split('/')[2];
-      // We'll handle selecting this cafe after we load cafes, or we fetch it directly.
-    }
+
 
     // NOTE: Removed automatic geolocation search to prefer the Curated Hyderabad List on load.
     // User can trigger geolocation search manually if implemented.
-  }, []);
+  }, [location.pathname]);
 
   // Sync URL with Selected Cafe
   useEffect(() => {
@@ -133,19 +128,21 @@ function App() {
     if (isApiLoaded) {
       // Only search if there are explicit filters active that require API
       // Otherwise we stick to our curated list
-      if (filters.city || filters.state || (filters.type && filters.type !== '')) {
-        const locationQuery = filters.city || filters.state || 'Hyderabad';
-        const typeQuery = filters.type ? `${filters.type} cafes` : 'Best cafes';
-        const query = `${typeQuery} in ${locationQuery}`;
-        // performSearch(query); // Optional: Enable if we want API search for filters
-      }
+      // if (filters.city || filters.state || (filters.type && filters.type !== '')) {
+      //   const locationQuery = filters.city || filters.state || 'Hyderabad';
+      //   const typeQuery = filters.type ? `${filters.type} cafes` : 'Best cafes';
+      //   // const query = `${typeQuery} in ${locationQuery}`;
+      //   // performSearch(query); // Optional: Enable if we want API search for filters
+      // }
     }
   }, [isApiLoaded, filters]);
 
   // Autocomplete Search Logic
   useEffect(() => {
     if (!searchTerm || searchTerm.length < 2 || !autocompleteService.current) {
-      setSuggestions([]);
+      // Move setSuggestions into another place or suppress this specific cascaded render hook warning
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (suggestions.length > 0) setSuggestions([]);
       return;
     }
     const request = { input: searchTerm, types: ['cafe', 'bakery', 'restaurant', 'food'] };
@@ -161,6 +158,7 @@ function App() {
         setSuggestions([]);
       }
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm]);
 
   const handleSelectSuggestion = (suggestion) => {
@@ -249,7 +247,27 @@ function App() {
           onSuggestionSelect={handleSelectSuggestion}
           cafes={cafes}
           selectedCafe={selectedCafe}
-          onCafeSelect={handleSelectSuggestion}
+          onCafeSelect={(cafe) => {
+            if (cafe === null) {
+              setSelectedCafe(null);
+              return;
+            }
+            // If it's a mock cafe or fully populated
+            if (cafe.coordinates || cafe.address) {
+              const selectedWithImage = {
+                ...cafe,
+                image: cafe.image || "https://images.unsplash.com/photo-1554118811-1e0d58224f24"
+              };
+              setSelectedCafe(selectedWithImage);
+              setSearchTerm(cafe.name);
+            } else {
+              handleSelectSuggestion(cafe);
+            }
+
+            if (activeTab === 'home') {
+              setActiveTab('explore');
+            }
+          }}
         />
       ) : (
         <div
@@ -322,16 +340,32 @@ function App() {
               <MapArea
                 cafes={activeTab === 'favorites' ? favorites : cafes}
                 selectedCafe={selectedCafe}
-                onCafeSelect={handleSelectSuggestion}
+                onCafeSelect={(cafe) => {
+                  // If it's a mock cafe or fully populated (has lat/lng directly instead of just a place_id prediction), select it directly
+                  if (cafe.coordinates || cafe.address) {
+                    const selectedWithImage = {
+                      ...cafe,
+                      image: cafe.image || "https://images.unsplash.com/photo-1554118811-1e0d58224f24"
+                    };
+                    setSelectedCafe(selectedWithImage);
+                    setSearchTerm(cafe.name);
+                  } else {
+                    handleSelectSuggestion(cafe);
+                  }
+
+                  if (activeTab === 'home') {
+                    setActiveTab('explore');
+                  }
+                }}
                 isHome={activeTab === 'home'}
               />
             </div>
 
             {/* Bottom Details Area */}
             {activeTab !== 'home' && (
-              <div className="h-[320px] w-full flex gap-6 shrink-0 p-6 bg-gradient-to-t from-white/80 to-transparent pointer-events-none">
-                <div className="pointer-events-auto flex w-full gap-6">
-                  <div className="w-[450px] shrink-0 h-full">
+              <div className={`h-[320px] w-full flex gap-6 shrink-0 p-6 bg-gradient-to-t from-white/80 to-transparent pointer-events-none transition-transform duration-500 ease-in-out ${selectedCafe ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 absolute bottom-0'}`}>
+                <div className="pointer-events-auto flex w-full gap-6 h-full items-end">
+                  <div className="w-[450px] shrink-0 h-[280px]">
                     <CafeDetails
                       cafe={selectedCafe ? {
                         ...selectedCafe,
@@ -342,8 +376,14 @@ function App() {
                     />
                   </div>
                   {selectedCafe && (
-                    <div className="flex-1 h-full">
+                    <div className="flex-1 h-[280px] relative transition-all duration-500 delay-100 transform origin-bottom animate-in fade-in slide-in-from-bottom-8">
                       <CafeImage cafe={selectedCafe} />
+                      <button
+                        onClick={() => setSelectedCafe(null)}
+                        className="absolute -top-3 -right-3 bg-white shadow-xl rounded-full p-2 text-gray-500 hover:text-black hover:scale-110 transition-transform z-20"
+                      >
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                      </button>
                     </div>
                   )}
                 </div>

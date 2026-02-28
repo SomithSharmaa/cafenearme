@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import TopBar from './TopBar';
 import MapArea from './MapArea';
 import CafeDetails from './CafeDetails';
@@ -9,6 +9,14 @@ const MobileLayout = ({
     searchTerm, onSearchChange, filters, onFilterChange, suggestions, onSuggestionSelect,
     cafes, selectedCafe, onCafeSelect
 }) => {
+    const detailsRef = useRef(null);
+
+    useEffect(() => {
+        if (selectedCafe && detailsRef.current) {
+            detailsRef.current.scrollTop = 0;
+        }
+    }, [selectedCafe]);
+
     return (
         <div className="h-screen w-screen flex flex-col relative overflow-hidden bg-white">
             {/* Map Layer */}
@@ -38,7 +46,7 @@ const MobileLayout = ({
                                 <X size={20} />
                             </button>
                         </div>
-                        <div className="overflow-y-auto p-4">
+                        <div ref={detailsRef} className="flex-1 overflow-y-auto w-full scroll-smooth bg-transparent">
                             <CafeDetails cafe={selectedCafe} />
                         </div>
                     </>

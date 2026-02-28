@@ -1,22 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Coffee, Briefcase, Camera, Users, Star, ArrowRight, MapPin, Sparkles } from 'lucide-react';
 
-const HomeOverlay = ({ onVibeSelect, trendingCafes, onCafeSelect, onOpenMatchmaker }) => {
-    const [greeting, setGreeting] = useState('Good Morning');
+const HomeOverlay = ({ onOpenMatchmaker }) => {
 
-    useEffect(() => {
-        const hour = new Date().getHours();
-        if (hour < 12) setGreeting('Good Morning');
-        else if (hour < 18) setGreeting('Good Afternoon');
-        else setGreeting('Good Evening');
-    }, []);
-
-    const vibes = [
-        { id: 'work', label: 'Work & Study', icon: Briefcase, color: 'bg-blue-100 text-blue-600', query: 'work friendly cafes with wifi' },
-        { id: 'coffee', label: 'Pure Brew', icon: Coffee, color: 'bg-amber-100 text-amber-700', query: 'specialty coffee shops' },
-        { id: 'aesthetic', label: 'Aesthetic', icon: Camera, color: 'bg-pink-100 text-pink-600', query: 'aesthetic cafes with ambiance' },
-        { id: 'social', label: 'Socialize', icon: Users, color: 'bg-green-100 text-green-600', query: 'cafes for groups' },
-    ];
 
     return (
         <div className="absolute top-0 left-[80px] w-[calc(100vw-80px)] h-full z-[10] pointer-events-none flex flex-col justify-end pb-8">
