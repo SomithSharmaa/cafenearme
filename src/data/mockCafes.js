@@ -1,4 +1,4 @@
-export const HYDERABAD_CAFES = [
+const BASE_CAFES = [
     // --- BANJARA HILLS (Premium Hub) ---
     { id: 'bh1', name: "Roast 24 Seven", rating: 4.8, reviewsCount: 1500, coordinates: { lat: 17.4150, lng: 78.4300 }, address: "Banjara Hills Rd 12" },
     { id: 'bh2', name: "The Roastery Coffee House", rating: 4.9, reviewsCount: 3000, coordinates: { lat: 17.4200, lng: 78.4350 }, address: "Banjara Hills" },
@@ -89,3 +89,27 @@ export const HYDERABAD_CAFES = [
     { id: 'bs2', name: "10 Downing Street", rating: 4.4, reviewsCount: 5000, coordinates: { lat: 17.4350, lng: 78.4600 }, address: "Begumpet" },
     { id: 'bs3', name: "The Park", rating: 4.3, reviewsCount: 3000, coordinates: { lat: 17.4250, lng: 78.4620 }, address: "Somajiguda" },
 ];
+
+// Procedurally generate 600 more cafes bounding Hyderabad for the clustering demo
+const generatedCafes = [];
+const vibes = ['Social', 'Work', 'Quiet', 'Date', 'Pet-Friendly', 'Arttsy'];
+
+for (let i = 0; i < 600; i++) {
+    // Generate bounds around Hyderabad (Lat: 17.35 to 17.50, Lng: 78.30 to 78.55)
+    const lat = 17.35 + Math.random() * 0.15;
+    const lng = 78.30 + Math.random() * 0.25;
+
+    generatedCafes.push({
+        id: `mock-gen-${i}`,
+        name: `Local Roasters ${i + 1}`,
+        rating: (3.2 + Math.random() * 1.8).toFixed(1), // Random rating between 3.2 and 5.0
+        reviewsCount: Math.floor(Math.random() * 3000),
+        coordinates: { lat, lng },
+        address: "Hyderabad Neighborhood",
+        type: vibes[Math.floor(Math.random() * vibes.length)],
+        visitors: Math.floor(Math.random() * 5000),
+        images: ["https://images.unsplash.com/photo-1554118811-1e0d58224f24", "https://images.unsplash.com/photo-1497935586351-b67a49e012bf"]
+    });
+}
+
+export const HYDERABAD_CAFES = [...BASE_CAFES, ...generatedCafes];

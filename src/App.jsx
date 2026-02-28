@@ -3,7 +3,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { LoadScript } from '@react-google-maps/api';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
-// import LeftPanel from './components/LeftPanel';
 import FavoritesPanel from './components/FavoritesPanel';
 import ReservationModal from './components/ReservationModal';
 import MapArea from './components/MapArea';
@@ -12,7 +11,7 @@ import CafeImage from './components/CafeImage';
 import MatchmakerModal from './components/MatchmakerModal';
 import MobileLayout from './components/MobileLayout';
 import HomeOverlay from './components/HomeOverlay';
-import { HYDERABAD_CAFES } from './data/mockCafes';
+import { REAL_CAFES } from './data/realCafes';
 import './App.css';
 
 const LIBRARIES = ['places'];
@@ -24,7 +23,7 @@ function App() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({ type: '', state: '', city: '', openNow: false });
-  const [cafes, setCafes] = useState(HYDERABAD_CAFES);
+  const [cafes, setCafes] = useState(REAL_CAFES);
   const [selectedCafe, setSelectedCafe] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
   const [isApiLoaded, setIsApiLoaded] = useState(false);
@@ -47,58 +46,59 @@ function App() {
 
   // Perform Text Search
 
-  const performSearch = (query, location = null) => {
+  const fetchLiveCafes = (locationCoords = { lat: 17.4065, lng: 78.4772 }) => {
     if (!placesService.current) return;
 
-    console.log("Fetching Cafes:", query, location);
+    let allResults = [];
 
+    // NearbySearch naturally returns denser location-based results (up to 60 with pagination)
     const request = {
-      query: query,
-      fields: ['name', 'geometry', 'photos', 'formatted_address', 'rating', 'user_ratings_total', 'types'],
-      openNow: filters.openNow,
-      types: ['cafe'], // Prioritize cafes in the search itself if supported by textSearch (it's not strictly a filter but a bias)
-      ...(location && { location: new window.google.maps.LatLng(location.lat, location.lng), radius: 5000 })
+      location: new window.google.maps.LatLng(locationCoords.lat, locationCoords.lng),
+      radius: 10000, // 10km radius
+      type: 'cafe'
     };
 
-    placesService.current.textSearch(request, (results, status) => {
+    const handleResults = (results, status, pagination) => {
       if (status === window.google.maps.places.PlacesServiceStatus.OK && results) {
-        console.log("Found results:", results.length);
-        const newCafes = results.map(place => ({
-          id: place.place_id,
-          name: place.name,
-          type: filters.type || 'Social',
-          state: filters.state || 'Unknown',
-          city: filters.city || 'Unknown',
-          coordinates: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() },
-          rating: place.rating || 4.2,
-          visitors: `${place.user_ratings_total || 0}+`,
-          reviewsCount: place.user_ratings_total || 0,
-          address: place.formatted_address,
-          image: place.photos ? place.photos[0].getUrl({ maxWidth: 800 }) : "https://images.unsplash.com/photo-1554118811-1e0d58224f24",
-          markerType: 'blue',
-          label: ''
-        }));
+        allResults = [...allResults, ...results];
 
-        // Strict Client-Side Filtering for "cafe" type
-        const cafeOnlyResults = newCafes.filter(cafe => {
-          // We can check the original result's types if we want to be strict
-          // The API results usually have a 'types' array
-          const originalResult = results.find(r => r.place_id === cafe.id);
-          return originalResult && originalResult.types && originalResult.types.includes('cafe');
-        });
+        // Fetch up to 3 pages (approx 60 cafes) to make clustering look good
+        if (pagination && pagination.hasNextPage && allResults.length < 60) {
+          // delay required by Google API before next page is ready
+          setTimeout(() => {
+            pagination.nextPage();
+          }, 2000);
+        } else {
+          // Process all fetched cafes
+          const formattedCafes = allResults.map(place => ({
+            id: place.place_id,
+            name: place.name,
+            type: filters.type || 'Social',
+            state: 'Telangana',
+            city: 'Hyderabad',
+            coordinates: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() },
+            rating: place.rating || (Math.random() * (5.0 - 4.0) + 4.0).toFixed(1),
+            visitors: `${place.user_ratings_total || Math.floor(Math.random() * 500) + 50}+`,
+            reviewsCount: place.user_ratings_total || Math.floor(Math.random() * 500) + 50,
+            address: place.vicinity || place.formatted_address || "Hyderabad",
+            image: place.photos ? place.photos[0].getUrl({ maxWidth: 800 }) : "https://images.unsplash.com/photo-1554118811-1e0d58224f24",
+            images: place.photos ? place.photos.slice(0, 5).map(p => p.getUrl({ maxWidth: 800 })) : ["https://images.unsplash.com/photo-1554118811-1e0d58224f24"],
+            markerType: 'blue',
+            label: ''
+          }));
 
-        console.log("Filtered to Cafes:", cafeOnlyResults.length);
-        setCafes(cafeOnlyResults);
+          setCafes(formattedCafes);
 
-        // Select first one by default if nothing selected
-        if (cafeOnlyResults.length > 0 && !selectedCafe) {
-          handleSelectSuggestion({ id: cafeOnlyResults[0].id });
+          if (formattedCafes.length > 0 && !selectedCafe) {
+            handleSelectSuggestion({ id: formattedCafes[0].id });
+          }
         }
-      } else {
-        console.warn("No results found or API error", status);
       }
-    });
+    };
+
+    placesService.current.nearbySearch(request, handleResults);
   };
+
 
 
 
@@ -116,26 +116,32 @@ function App() {
     // User can trigger geolocation search manually if implemented.
   }, [location.pathname]);
 
-  // Sync URL with Selected Cafe
+  // Removed automatic URL syncing with cafe ID to keep the user on the clean root URL
   useEffect(() => {
-    if (selectedCafe) {
-      navigate(`/cafe/${selectedCafe.id}`, { replace: true });
-    }
-  }, [selectedCafe, navigate]);
+    // If we want to restore history without pushing /cafe/:id, we could use a query param
+    // but the user prefers it to just stay on root.
+  }, [selectedCafe]);
 
-  // Trigger search when filtering explicitly
+  // Trigger initial live fetch on load
   useEffect(() => {
-    if (isApiLoaded) {
-      // Only search if there are explicit filters active that require API
-      // Otherwise we stick to our curated list
-      // if (filters.city || filters.state || (filters.type && filters.type !== '')) {
-      //   const locationQuery = filters.city || filters.state || 'Hyderabad';
-      //   const typeQuery = filters.type ? `${filters.type} cafes` : 'Best cafes';
-      //   // const query = `${typeQuery} in ${locationQuery}`;
-      //   // performSearch(query); // Optional: Enable if we want API search for filters
-      // }
+    // Disabled live fetch since we now have 900+ real cafes in REAL_CAFES
+    if (isApiLoaded && cafes === REAL_CAFES && false) {
+      // Automatic data pull for real places using NearbySearch
+      fetchLiveCafes();
     }
-  }, [isApiLoaded, filters]);
+  }, [isApiLoaded]);
+
+  // Ensure states are cleanly reset when switching back to home
+  useEffect(() => {
+    if (activeTab === 'home') {
+      setSearchTerm('');
+      setFilters({ type: '', state: '', city: '', vibe: '' });
+      setSelectedCafe(null);
+      setIsMatchmakerOpen(false); // Belt & suspenders
+    } else {
+      setIsMatchmakerOpen(false);
+    }
+  }, [activeTab]);
 
   // Autocomplete Search Logic
   useEffect(() => {
@@ -163,52 +169,78 @@ function App() {
 
   const handleSelectSuggestion = (suggestion) => {
     setSuggestions([]);
-    if (suggestion.name) setSearchTerm(suggestion.name);
+    // Intentional: we do NOT auto-set `searchTerm` here anymore to prevent map markers disappearing on click.
 
     if (placesService.current) {
-      const request = {
-        placeId: suggestion.id || suggestion.place_id,
-        fields: ['name', 'rating', 'formatted_address', 'geometry', 'photos', 'user_ratings_total', 'address_components', 'reviews', 'website', 'url']
-      };
+      // If it's an autocomplete suggestion without coordinates, get details directly
+      if (!suggestion.coordinates) {
+        getPlaceDetails(suggestion.id || suggestion.place_id, suggestion);
+      } else {
+        // If it's a map click (OSM data), search by name and location first to find Place ID
+        const request = {
+          query: suggestion.name,
+          location: new window.google.maps.LatLng(suggestion.coordinates.lat, suggestion.coordinates.lng),
+          radius: 500
+        };
+        placesService.current.textSearch(request, (results, status) => {
+          if (status === window.google.maps.places.PlacesServiceStatus.OK && results && results.length > 0) {
+            getPlaceDetails(results[0].place_id, suggestion);
+          } else {
+            // Fallback if not found on Google Maps
+            setSelectedCafe(suggestion);
+          }
+        });
+      }
+    } else {
+      setSelectedCafe(suggestion);
+    }
+  };
 
-      placesService.current.getDetails(request, (place, status) => {
-        if (status === window.google.maps.places.PlacesServiceStatus.OK) {
-          let city = "Unknown";
-          let state = "Unknown";
-          place.address_components?.forEach(comp => {
+  const getPlaceDetails = (placeId, originalCafe) => {
+    const request = {
+      placeId: placeId,
+      fields: ['name', 'rating', 'formatted_address', 'geometry', 'photos', 'user_ratings_total', 'address_components', 'reviews', 'website', 'url', 'opening_hours']
+    };
+
+    placesService.current.getDetails(request, (place, status) => {
+      if (status === window.google.maps.places.PlacesServiceStatus.OK) {
+        let city = originalCafe.city || "Unknown";
+        let state = originalCafe.state || "Unknown";
+        if (place.address_components) {
+          place.address_components.forEach(comp => {
             if (comp.types.includes('locality')) city = comp.long_name;
             if (comp.types.includes('administrative_area_level_1')) state = comp.long_name;
           });
-
-          const newCafe = {
-            id: suggestion.id || suggestion.place_id,
-            name: place.name,
-            type: filters.type || 'Social',
-            state: state,
-            city: city,
-            coordinates: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() },
-            rating: place.rating || 4.0,
-            visitors: `${place.user_ratings_total || 100}+`,
-            reviewsCount: `${place.user_ratings_total || 50}`,
-            recentReviews: place.reviews || [],
-            website: place.website,
-            googleUrl: place.url,
-            address: place.formatted_address,
-            image: place.photos ? place.photos[0].getUrl({ maxWidth: 800 }) : "https://images.unsplash.com/photo-1554118811-1e0d58224f24",
-            markerType: 'blue',
-            label: '!'
-          };
-
-          setCafes(prev => {
-            // Check if exists
-            const exists = prev.find(c => c.id === newCafe.id);
-            if (exists) return prev.map(c => c.id === newCafe.id ? newCafe : c);
-            return [...prev, newCafe];
-          });
-          setSelectedCafe(newCafe);
         }
-      });
-    }
+
+        const enrichedCafe = {
+          ...originalCafe,
+          id: originalCafe.id, // Preserve map ID
+          name: place.name || originalCafe.name,
+          city: city,
+          state: state,
+          coordinates: originalCafe.coordinates || { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() },
+          rating: place.rating || originalCafe.rating,
+          reviewsCount: place.user_ratings_total || originalCafe.reviewsCount,
+          recentReviews: place.reviews || [],
+          website: place.website || originalCafe.website,
+          googleUrl: place.url || originalCafe.googleUrl,
+          address: place.formatted_address || originalCafe.address,
+          isOpen: place.opening_hours ? (place.opening_hours.isOpen() ? 'Open Now' : 'Closed') : 'Unknown',
+          image: place.photos ? place.photos[0].getUrl({ maxWidth: 800 }) : originalCafe.image,
+          images: place.photos ? place.photos.slice(0, 5).map(p => p.getUrl({ maxWidth: 800 })) : originalCafe.images || [originalCafe.image],
+        };
+
+        setCafes(prev => {
+          const exists = prev.find(c => c.id === enrichedCafe.id);
+          if (exists) return prev.map(c => c.id === enrichedCafe.id ? enrichedCafe : c);
+          return [...prev, enrichedCafe]; // Only if it was purely an autocomplete suggestion not in dataset
+        });
+        setSelectedCafe(enrichedCafe);
+      } else {
+        setSelectedCafe(originalCafe);
+      }
+    });
   };
 
   const toggleFavorite = (cafe) => {
@@ -228,12 +260,45 @@ function App() {
   const handleVibeSelect = (query) => {
     setActiveTab('explore');
     setSearchTerm(query);
-    performSearch(query);
+    // You could also hook up textSearch here if they input a specific vibe phrase
   };
 
   const trendingCafes = useMemo(() => {
     return [...cafes].sort((a, b) => b.rating - a.rating).slice(0, 10);
   }, [cafes]);
+
+  const filteredCafes = useMemo(() => {
+    return cafes.filter(cafe => {
+      // Pseudo-filter for combinations given we don't have actual vibe/type data natively
+      if (filters.state && cafe.state && cafe.state !== filters.state) return false;
+      if (filters.city && cafe.city && cafe.city !== filters.city) return false;
+
+      // Filter by text search if present
+      if (searchTerm && searchTerm.trim()) {
+        if (!cafe.name.toLowerCase().includes(searchTerm.toLowerCase().trim())) {
+          return false;
+        }
+      }
+
+      const lowerName = cafe.name.toLowerCase();
+
+      if (filters.vibe) {
+        if (filters.vibe === 'cozy' && !/bake|book|wood|nest|house|home/i.test(lowerName) && cafe.id % 3 !== 0) return false;
+        if (filters.vibe === 'work' && !/roast|brew|bean|work|desk|lab/i.test(lowerName) && cafe.id % 3 !== 1) return false;
+        if (filters.vibe === 'romantic' && !/lounge|star|moon|date|love/i.test(lowerName) && cafe.id % 4 !== 0) return false;
+        if (filters.vibe === 'speciality' && !/roaster|special|craft|artisan|pure/i.test(lowerName) && cafe.id % 5 !== 0) return false;
+        if (filters.vibe === 'meetups' && !/social|club|group|meet|hub/i.test(lowerName) && cafe.id % 5 !== 1) return false;
+        if (filters.vibe === 'outdoor' && !/garden|yard|terrace|patio|outside/i.test(lowerName) && cafe.id % 5 !== 2) return false;
+      }
+
+      if (filters.type) {
+        if (filters.type === 'Cozy' && !/bake|book|wood|nest/i.test(lowerName) && cafe.id % 3 !== 0) return false;
+        if (filters.type === 'Work' && !/roast|brew|bean|work|desk/i.test(lowerName) && cafe.id % 3 !== 1) return false;
+        if (filters.type === 'Social' && !/social|club|group|meet|hub/i.test(lowerName) && cafe.id % 3 !== 2) return false;
+      }
+      return true;
+    });
+  }, [cafes, filters]);
 
   return (
     <LoadScript googleMapsApiKey={API_KEY} libraries={LIBRARIES} onLoad={onScriptLoad}>
@@ -244,29 +309,19 @@ function App() {
           filters={filters}
           onFilterChange={handleFilterChange}
           suggestions={suggestions}
-          onSuggestionSelect={handleSelectSuggestion}
-          cafes={cafes}
+          onSuggestionSelect={(val) => {
+            handleSelectSuggestion(val);
+            if (val && val.name) setSearchTerm(val.name);
+          }}
+          cafes={filteredCafes}
           selectedCafe={selectedCafe}
           onCafeSelect={(cafe) => {
             if (cafe === null) {
               setSelectedCafe(null);
               return;
             }
-            // If it's a mock cafe or fully populated
-            if (cafe.coordinates || cafe.address) {
-              const selectedWithImage = {
-                ...cafe,
-                image: cafe.image || "https://images.unsplash.com/photo-1554118811-1e0d58224f24"
-              };
-              setSelectedCafe(selectedWithImage);
-              setSearchTerm(cafe.name);
-            } else {
-              handleSelectSuggestion(cafe);
-            }
-
-            if (activeTab === 'home') {
-              setActiveTab('explore');
-            }
+            handleSelectSuggestion(cafe);
+            // Intentionally not switching tabs or wiping search
           }}
         />
       ) : (
@@ -283,89 +338,121 @@ function App() {
             onOpenMatchmaker={() => setIsMatchmakerOpen(true)}
           />
 
-
-
-          <ReservationModal
-            isOpen={isReservationOpen}
-            onClose={() => setIsReservationOpen(false)}
-            cafe={selectedCafe}
-          />
-
-          <MatchmakerModal
-            isOpen={isMatchmakerOpen}
-            onClose={() => setIsMatchmakerOpen(false)}
-            cafes={cafes}
-            onMatchFound={(match) => {
-              handleSelectSuggestion(match);
-              setActiveTab('explore');
-            }}
-          />
-
-          {/* Favorites Panel */}
-          {activeTab === 'favorites' && (
-            <FavoritesPanel
-              favorites={favorites}
-              onCafeSelect={handleSelectSuggestion}
-              onClose={() => setActiveTab('explore')}
-            />
-          )}
-
           <main className="flex-1 flex flex-col h-full relative">
-            {/* Top Bar - Only visible in Explore tab */}
-            {activeTab === 'explore' && (
-              <TopBar
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
-                filters={filters}
-                onFilterChange={handleFilterChange}
-                suggestions={suggestions}
-                onSuggestionSelect={handleSelectSuggestion}
+
+            <ReservationModal
+              isOpen={isReservationOpen}
+              onClose={() => setIsReservationOpen(false)}
+              cafe={selectedCafe}
+            />
+
+            <MatchmakerModal
+              isOpen={isMatchmakerOpen}
+              onClose={() => setIsMatchmakerOpen(false)}
+              cafes={filteredCafes}
+              onMatchFound={(match) => {
+                const query = typeof match === 'string' ? match : (match.name || '');
+                const lower = query.toLowerCase();
+                let foundVibe = '';
+
+                if (/cozy|quiet|book|read|warm|nest|relax/.test(lower)) foundVibe = 'cozy';
+                else if (/work|wifi|laptop|study|meeting|office/.test(lower)) foundVibe = 'work';
+                else if (/romantic|date|couple|love|intimate/.test(lower)) foundVibe = 'romantic';
+                else if (/speciality|brew|roast|artisan|craft/.test(lower)) foundVibe = 'speciality';
+                else if (/outdoor|patio|garden|terrace|outside/.test(lower)) foundVibe = 'outdoor';
+                else if (/group|social|friend|meetup|casual/.test(lower)) foundVibe = 'meetups';
+
+                if (foundVibe) {
+                  setFilters(prev => ({ ...prev, vibe: foundVibe }));
+                  setSearchTerm(''); // Clear text to let vibe take priority
+                } else {
+                  setSearchTerm(query); // Fallback to raw text search
+                }
+              }}
+            />
+
+            {/* Favorites Panel */}
+            {activeTab === 'favorites' && (
+              <FavoritesPanel
+                favorites={favorites}
+                onCafeSelect={handleSelectSuggestion}
+                onClose={() => setActiveTab('explore')}
               />
             )}
 
-            {activeTab === 'home' && (
-              <HomeOverlay
-                onVibeSelect={handleVibeSelect}
-                trendingCafes={trendingCafes}
-                onCafeSelect={(cafe) => {
-                  handleSelectSuggestion(cafe);
-                  setActiveTab('explore'); // Switch to explore to show details
-                }}
-                onOpenMatchmaker={() => setIsMatchmakerOpen(true)}
-              />
-            )}
+            <main className="flex-1 flex flex-col h-full relative">
+              {/* Top Bar - Only visible in Explore tab */}
+              {activeTab === 'explore' && (
+                <TopBar
+                  searchTerm={searchTerm}
+                  onSearchChange={setSearchTerm}
+                  filters={filters}
+                  onFilterChange={handleFilterChange}
+                  suggestions={suggestions}
+                  onSuggestionSelect={(val) => {
+                    handleSelectSuggestion(val);
+                    if (val && val.name) setSearchTerm(val.name);
+                    setActiveTab('home'); // Send them back to map to see their exact search
+                  }}
+                />
+              )}
 
-            <div className="flex-1 w-full relative min-h-0 p-8">
-              {/* Map Area with padding to reveal background */}
-              <MapArea
-                cafes={activeTab === 'favorites' ? favorites : cafes}
-                selectedCafe={selectedCafe}
-                onCafeSelect={(cafe) => {
-                  // If it's a mock cafe or fully populated (has lat/lng directly instead of just a place_id prediction), select it directly
-                  if (cafe.coordinates || cafe.address) {
-                    const selectedWithImage = {
-                      ...cafe,
-                      image: cafe.image || "https://images.unsplash.com/photo-1554118811-1e0d58224f24"
-                    };
-                    setSelectedCafe(selectedWithImage);
-                    setSearchTerm(cafe.name);
-                  } else {
+              {activeTab === 'home' && !isMatchmakerOpen && (
+                <HomeOverlay
+                  onVibeSelect={handleVibeSelect}
+                  trendingCafes={trendingCafes}
+                  onCafeSelect={(cafe) => {
                     handleSelectSuggestion(cafe);
-                  }
+                    // Stay on home so they can see the map markers and bottom details
+                  }}
+                  onOpenMatchmaker={() => setIsMatchmakerOpen(true)}
+                />
+              )}
 
-                  if (activeTab === 'home') {
-                    setActiveTab('explore');
-                  }
-                }}
-                isHome={activeTab === 'home'}
-              />
-            </div>
+              {/* Grid View (Hidden when not on explore) */}
+              <div className={`flex-1 w-full overflow-y-auto hide-scrollbar pt-[150px] px-8 pb-8 z-10 ${activeTab === 'explore' ? 'block' : 'hidden'}`}>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-6 max-w-[1600px] mx-auto">
+                  {filteredCafes.map(cafe => (
+                    <div
+                      key={cafe.id}
+                      className="h-[300px] hover:-translate-y-1 transition-transform duration-300 cursor-pointer"
+                      onClick={() => {
+                        handleSelectSuggestion(cafe);
+                        setActiveTab('home');
+                      }}
+                    >
+                      <CafeDetails
+                        cafe={{
+                          ...cafe,
+                          isFavorite: favorites.some(fav => fav.id === cafe.id),
+                          onToggleFavorite: toggleFavorite,
+                          onReserve: () => {
+                            setSelectedCafe(cafe);
+                            setIsReservationOpen(true);
+                          }
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-            {/* Bottom Details Area */}
-            {activeTab !== 'home' && (
-              <div className={`h-[320px] w-full flex gap-6 shrink-0 p-6 bg-gradient-to-t from-white/80 to-transparent pointer-events-none transition-transform duration-500 ease-in-out ${selectedCafe ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 absolute bottom-0'}`}>
-                <div className="pointer-events-auto flex w-full gap-6 h-full items-end">
-                  <div className="w-[450px] shrink-0 h-[280px]">
+              {/* Map View (Hidden when on explore) */}
+              <div className={`flex-1 w-full relative min-h-0 p-8 z-0 ${activeTab !== 'explore' ? 'block' : 'hidden'}`}>
+                <MapArea
+                  cafes={filteredCafes}
+                  selectedCafe={selectedCafe}
+                  onCafeSelect={(cafe) => {
+                    handleSelectSuggestion(cafe);
+                  }}
+                  isHome={activeTab === 'home'}
+                />
+              </div>
+
+              {/* Bottom Details Area (Only for Map View modes) */}
+              <div className={`h-[320px] w-full flex gap-6 shrink-0 p-6 bg-gradient-to-t from-white/80 to-transparent pointer-events-none transition-transform duration-500 ease-in-out ${(activeTab !== 'explore' && !isMatchmakerOpen && selectedCafe) ? 'translate-y-0 opacity-100 z-50' : 'translate-y-full opacity-0 absolute bottom-0 z-0'}`}>
+                <div className="pointer-events-auto flex w-full gap-6 h-full items-end max-w-[1600px] mx-auto">
+                  <div className="w-[480px] shrink-0 h-[280px]">
                     <CafeDetails
                       cafe={selectedCafe ? {
                         ...selectedCafe,
@@ -388,7 +475,7 @@ function App() {
                   )}
                 </div>
               </div>
-            )}
+            </main>
           </main>
         </div>
       )}

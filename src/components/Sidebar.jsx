@@ -25,11 +25,6 @@ const Sidebar = ({ activeTab, onTabChange, onOpenMatchmaker }) => {
                     onClick={() => onTabChange('explore')}
                 />
                 <NavItem
-                    icon={<Heart size={22} />}
-                    active={activeTab === 'favorites'}
-                    onClick={() => onTabChange('favorites')}
-                />
-                <NavItem
                     icon={<Sparkles size={22} className="text-purple-600" />}
                     onClick={onOpenMatchmaker}
                     special

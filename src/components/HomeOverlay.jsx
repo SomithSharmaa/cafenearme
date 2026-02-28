@@ -6,28 +6,19 @@ const HomeOverlay = ({ onOpenMatchmaker }) => {
 
     return (
         <div className="absolute top-0 left-[80px] w-[calc(100vw-80px)] h-full z-[10] pointer-events-none flex flex-col justify-end pb-8">
-
-            {/* Minimalist Floating Search Bar - Bottom Center */}
-            <div className="pointer-events-auto w-full px-[10px] animate-in slide-in-from-bottom-8 duration-700">
-                <button
+            {/* Minimalist Floating Search Bar - Bottom Center (Figma Match) */}
+            <div className="pointer-events-auto w-full max-w-3xl mx-auto px-6 mb-2 animate-in slide-in-from-bottom-8 duration-700">
+                {/* Gradient Border Wrapper */}
+                <div
+                    className="rounded-full p-[2px] bg-gradient-to-r from-pink-300 via-purple-300 to-cyan-300 shadow-xl cursor-text hover:shadow-2xl transition-all group"
                     onClick={onOpenMatchmaker}
-                    className="w-full bg-white rounded-full shadow-2xl p-2 flex items-center gap-4 hover:scale-[1.01] transition-transform border border-purple-100 group"
                 >
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-purple-400 to-pink-400 flex items-center justify-center text-white shrink-0 shadow-md group-hover:rotate-12 transition-transform">
-                        <Sparkles size={24} fill="currentColor" />
+                    <div className="w-full bg-white rounded-full py-[14px] px-6 flex items-center gap-4 transition-colors group-hover:bg-white/95">
+                        <Sparkles size={20} className="text-pink-400" />
+                        <span className="text-gray-500 font-sans font-medium text-[15px] flex-1 text-left">What kind of cafe you are looking for?</span>
                     </div>
-
-                    <div className="flex-1 text-left">
-                        <span className="text-gray-400 font-medium text-lg block group-hover:hidden truncate">Start AI Vibe Check...</span>
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-500 font-bold text-lg hidden group-hover:block animate-in fade-in truncate">Tap to find your perfect cafe match ✨</span>
-                    </div>
-
-                    <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center text-gray-300 group-hover:bg-purple-50 group-hover:text-purple-500 transition-colors">
-                        <ArrowRight size={24} />
-                    </div>
-                </button>
+                </div>
             </div>
-
         </div>
     );
 };
